@@ -1,0 +1,53 @@
+# Environment
+.env
+.env.*
+!.env.example
+.env.backup*
+
+# Dependencies
+/node_modules
+/vendor
+
+# Builds
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+
+# Logs
+*.log
+/storage/logs/*.log
+
+# IDE
+/.fleet
+/.idea
+/.nova
+/.phpunit.cache
+/.vscode
+/.zed
+
+# Local
+/auth.json
+/local
+/prod
+Homestead.json
+Homestead.yaml
+Thumbs.db
+.DS_Store
+
+# Testing
+/.phpactor.json
+/.phpunit.result.cache
+/reports
+phpunit.xml
+opencode.json
+AGENTS.md
+GEMINI.md
+routes.txt
+Insomnia_2026_06_09.yaml
+/.agents
+/docs
+docker-compose.yml
+docker-entrypoint.sh
+DockerFile

@@ -1,0 +1,169 @@
+<?php
+
+namespace App\Models\Auth;
+
+use App\Models\User;
+use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property int $role_id
+ * @property string $assignable_type
+ * @property int $assignable_id
+ * @property Carbon|null $started_at
+ * @property Carbon|null $ended_at
+ * @property int|null $assigned_by
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Model|\Eloquent $assignable
+ * @property-read User|null $assignedBy
+ * @property-read \Spatie\Permission\Models\Role $role
+ * @property-read User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserAssignment active()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserAssignment forUser(int $userId)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserAssignment inactive()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserAssignment newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserAssignment newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserAssignment query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserAssignment whereAssignableId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserAssignment whereAssignableType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserAssignment whereAssignedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserAssignment whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserAssignment whereEndedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserAssignment whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserAssignment whereRoleId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserAssignment whereStartedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserAssignment whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserAssignment whereUserId($value)
+ * @mixin \Eloquent
+ */
+class UserAssignment extends Model
+{
+    use HasFactory;
+
+    protected $table = "user_assignments";
+
+    protected $fillable = [
+        "user_id",
+        "assignable_type",
+        "assignable_id",
+        "role_id",
+        "assigned_by",
+        "started_at",
+        "ended_at",
+    ];
+
+    protected $casts = [
+        "user_id" => "integer",
+        "assignable_id" => "integer",
+        "role_id" => "integer",
+        "assigned_by" => "integer",
+        "started_at" => "datetime",
+        "ended_at" => "datetime",
+    ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | Relationships
+    |--------------------------------------------------------------------------
+    */
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function assignable(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
+    public function role(): BelongsTo
+    {
+        $roleModel =
+            config("permission.models.role") ??
+            \Spatie\Permission\Models\Role::class;
+
+        return $this->belongsTo($roleModel, "role_id");
+    }
+
+    public function assignedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, "assigned_by");
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Scopes
+    |--------------------------------------------------------------------------
+    */
+
+    public function scopeForUser(Builder $query, int $userId)
+    {
+        return $query->where("user_id", $userId);
+    }
+
+    public function scopeActive(Builder $query)
+    {
+        return $query->whereNull("ended_at");
+    }
+
+    public function scopeInactive(Builder $query)
+    {
+        return $query->whereNotNull("ended_at");
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Lifecycle
+    |--------------------------------------------------------------------------
+    */
+
+    public function activate(): self
+    {
+        DB::transaction(function () {
+            // Deactivate existing active assignment for same scope
+            static::where("user_id", $this->user_id)
+                ->where("role_id", $this->role_id)
+                ->where("assignable_type", $this->assignable_type)
+                ->where("assignable_id", $this->assignable_id)
+                ->whereNull("ended_at")
+                ->update([
+                    "ended_at" => now(),
+                ]);
+
+            $this->fill([
+                "started_at" => $this->started_at ?? now(),
+                "ended_at" => null,
+            ])->save();
+        });
+
+        return $this;
+    }
+
+    public function deactivate(?Carbon $endedAt = null): self
+    {
+        $this->ended_at = $endedAt ?? now();
+        $this->save();
+
+        return $this;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Helpers
+    |--------------------------------------------------------------------------
+    */
+
+    public function isActive(): bool
+    {
+        return is_null($this->ended_at);
+    }
+}

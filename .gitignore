@@ -48,6 +48,4 @@ routes.txt
 Insomnia_2026_06_09.yaml
 /.agents
 /docs
-docker-compose.yml
 docker-entrypoint.sh
-DockerFile

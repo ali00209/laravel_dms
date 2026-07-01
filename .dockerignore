@@ -21,7 +21,6 @@ storage/pail
 storage/logs/*.log
 
 # Local development files
-docker-compose*.yml
 .DS_Store
 Homestead.json
 Homestead.yaml

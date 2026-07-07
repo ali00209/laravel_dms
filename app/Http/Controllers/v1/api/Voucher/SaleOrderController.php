@@ -13,19 +13,19 @@ use Illuminate\Http\Request;
 class SaleOrderController extends BaseApiController
 {
     protected array $permissions = [
-        'index' => 'sale.order.view',
-        'store' => 'sale.order.create',
-        'show' => 'sale.order.show',
-        'update' => 'sale.order.update',
-        'destroy' => 'sale.order.delete',
-        'restore' => 'sale.order.restore',
-        'forceDelete' => 'sale.order.forceDelete',
-        'submit' => 'sale.order.submit',
-        'review' => 'sale.order.review',
-        'approve' => 'sale.order.approve',
-        'reject' => 'sale.order.reject',
-        'confirm' => 'sale.order.confirm',
-        'cancel' => 'sale.order.cancel',
+        "index" => "sale.order.view",
+        "store" => "sale.order.create",
+        "show" => "sale.order.show",
+        "update" => "sale.order.update",
+        "destroy" => "sale.order.delete",
+        "restore" => "sale.order.restore",
+        "forceDelete" => "sale.order.forceDelete",
+        "submit" => "sale.order.submit",
+        "review" => "sale.order.review",
+        "approve" => "sale.order.approve",
+        "reject" => "sale.order.reject",
+        "confirm" => "sale.order.confirm",
+        "cancel" => "sale.order.cancel",
     ];
 
     public function __construct(protected SaleOrderService $service)
@@ -41,17 +41,24 @@ class SaleOrderController extends BaseApiController
         $this->authorizeAction($request);
 
         $filters = $request->only([
-            'search', 'branch_id', 'customer_id', 'voucher_type_id', 
-            'status', 'date_from', 'date_to', 'need_review', 'need_approval'
+            "search",
+            "branch_id",
+            "customer_id",
+            "voucher_type_id",
+            "status",
+            "date_from",
+            "date_to",
+            "need_review",
+            "need_approval",
         ]);
-        
+
         $this->restrictToContext($request, $filters);
 
         $items = $this->service->paginate($filters, $this->perPage($request));
 
         return $this->success(
             SaleOrderResource::collection($items),
-            $this->paginationMetadata($items)
+            $this->paginationMetadata($items),
         );
     }
 
@@ -61,11 +68,11 @@ class SaleOrderController extends BaseApiController
     public function store(StoreSaleOrderRequest $request): JsonResponse
     {
         $this->authorizeAction($request);
-        $this->enforcePolicy($request, 'sales');
+        $this->enforcePolicy($request, "sales");
 
         $saleOrder = $this->service->create($this->getValidatedData($request));
 
-        return $this->created('Sale order created successfully.');
+        return $this->created("Sale order created successfully.");
     }
 
     /**
@@ -82,28 +89,53 @@ class SaleOrderController extends BaseApiController
     /**
      * Update the specified sale order
      */
-    public function update(UpdateSaleOrderRequest $request, int $id): JsonResponse
-    {
+    public function update(
+        UpdateSaleOrderRequest $request,
+        int $id,
+    ): JsonResponse {
         $orgId = $this->getActiveOrgId($request);
         $saleOrder = $this->service->find($id, $orgId);
-        
+
         $this->authorizeAction($request, $saleOrder);
-        
+
         // Handle workflow actions if present
-        $action = $request->input('action');
-        
-        $result = match($action) {
-            'submit' => $this->service->submitForApproval($saleOrder, $request->input('note')),
-            'review' => $this->service->review($saleOrder, $request->input('note')),
-            'approve' => $this->service->approve($saleOrder, $request->input('note')),
-            'reject' => $this->service->reject($saleOrder, $request->input('reason'), null, $request->input('note')),
-            'confirm' => $this->service->confirm($saleOrder, $request->input('note')),
-            'cancel' => $this->service->cancel($saleOrder, $request->input('reason')),
-            default => $this->service->update($saleOrder, $request->validated()),
+        $action = $request->input("action");
+
+        $result = match ($action) {
+            "submit" => $this->service->submitForApproval(
+                $saleOrder,
+                $request->input("note"),
+            ),
+            "review" => $this->service->review(
+                $saleOrder,
+                $request->input("note"),
+            ),
+            "approve" => $this->service->approve(
+                $saleOrder,
+                $request->input("note"),
+            ),
+            "reject" => $this->service->reject(
+                $saleOrder,
+                $request->input("reason"),
+                null,
+                $request->input("note"),
+            ),
+            "confirm" => $this->service->confirm(
+                $saleOrder,
+                $request->input("note"),
+            ),
+            "cancel" => $this->service->cancel(
+                $saleOrder,
+                $request->input("reason"),
+            ),
+            default => $this->service->update(
+                $saleOrder,
+                $request->validated(),
+            ),
         };
-        
+
         $message = $this->getWorkflowMessage($action);
-        
+
         return $this->success([new SaleOrderResource($result), $message]);
     }
 
@@ -114,11 +146,11 @@ class SaleOrderController extends BaseApiController
     {
         $orgId = $this->getActiveOrgId($request);
         $saleOrder = $this->service->find($id, $orgId);
-        
+
         $this->authorizeAction($request, $saleOrder);
         $this->service->delete($saleOrder);
 
-        return $this->deleted('Sale order deleted successfully.');
+        return $this->deleted("Sale order deleted successfully.");
     }
 
     /**
@@ -127,12 +159,18 @@ class SaleOrderController extends BaseApiController
     public function restore(Request $request, int $id): JsonResponse
     {
         // $this->ensureAdmin($request);
-        $saleOrder = $this->service->find($id, $this->getActiveOrgId($request), true);
-        
+        $saleOrder = $this->service->find(
+            $id,
+            $this->getActiveOrgId($request),
+            true,
+        );
+
         $this->authorizeAction($request, $saleOrder);
         $this->service->restore($saleOrder);
 
-        return $this->success(['message' => 'Sale order restored successfully.']);
+        return $this->success([
+            "message" => "Sale order restored successfully.",
+        ]);
     }
 
     /**
@@ -141,12 +179,16 @@ class SaleOrderController extends BaseApiController
     public function forceDelete(Request $request, int $id): JsonResponse
     {
         $this->ensureAdmin($request);
-        $saleOrder = $this->service->find($id, $this->getActiveOrgId($request), true);
-        
+        $saleOrder = $this->service->find(
+            $id,
+            $this->getActiveOrgId($request),
+            true,
+        );
+
         $this->authorizeAction($request, $saleOrder);
         $this->service->forceDelete($saleOrder);
 
-        return $this->deleted('Sale order permanently deleted.');
+        return $this->deleted("Sale order permanently deleted.");
     }
 
     /**
@@ -154,14 +196,19 @@ class SaleOrderController extends BaseApiController
      */
     public function submit(Request $request, int $id): JsonResponse
     {
-        
         $orgId = $this->getActiveOrgId($request);
         $saleOrder = $this->service->find($id, $orgId);
         $this->authorizeAction($request, $saleOrder);
-        
-        $result = $this->service->submitForApproval($saleOrder, $request->input('note'));
-        
-        return $this->success([new SaleOrderResource($result), 'Sale order submitted for approval.']);
+
+        $result = $this->service->submitForApproval(
+            $saleOrder,
+            $request->input("note"),
+        );
+
+        return $this->success([
+            new SaleOrderResource($result),
+            "Sale order submitted for approval.",
+        ]);
     }
 
     /**
@@ -169,14 +216,16 @@ class SaleOrderController extends BaseApiController
      */
     public function review(Request $request, int $id): JsonResponse
     {
-        
         $orgId = $this->getActiveOrgId($request);
         $saleOrder = $this->service->find($id, $orgId);
         $this->authorizeAction($request, $saleOrder);
-        
-        $result = $this->service->review($saleOrder, $request->input('note'));
-        
-        return $this->success([new SaleOrderResource($result), 'Sale order reviewed successfully.']);
+
+        $result = $this->service->review($saleOrder, $request->input("note"));
+
+        return $this->success([
+            new SaleOrderResource($result),
+            "Sale order reviewed successfully.",
+        ]);
     }
 
     /**
@@ -184,14 +233,16 @@ class SaleOrderController extends BaseApiController
      */
     public function approve(Request $request, int $id): JsonResponse
     {
-        
         $orgId = $this->getActiveOrgId($request);
         $saleOrder = $this->service->find($id, $orgId);
         $this->authorizeAction($request, $saleOrder);
-        
-        $result = $this->service->approve($saleOrder, $request->input('note'));
-        
-        return $this->success([new SaleOrderResource($result), 'Sale order approved successfully.']);
+
+        $result = $this->service->approve($saleOrder, $request->input("note"));
+
+        return $this->success([
+            new SaleOrderResource($result),
+            "Sale order approved successfully.",
+        ]);
     }
 
     /**
@@ -199,19 +250,26 @@ class SaleOrderController extends BaseApiController
      */
     public function reject(Request $request, int $id): JsonResponse
     {
-        
         $request->validate([
-            'reason' => 'required|string|max:500',
-            'note' => 'nullable|string|max:500',
-            ]);
-            
-            $orgId = $this->getActiveOrgId($request);
-            $saleOrder = $this->service->find($id, $orgId);
-            $this->authorizeAction($request, $saleOrder);
-        
-        $result = $this->service->reject($saleOrder, $request->reason, null, $request->note);
-        
-        return $this->success([new SaleOrderResource($result), 'Sale order rejected.']);
+            "reason" => "required|string|max:500",
+            "note" => "nullable|string|max:500",
+        ]);
+
+        $orgId = $this->getActiveOrgId($request);
+        $saleOrder = $this->service->find($id, $orgId);
+        $this->authorizeAction($request, $saleOrder);
+
+        $result = $this->service->reject(
+            $saleOrder,
+            $request->reason,
+            null,
+            $request->note,
+        );
+
+        return $this->success([
+            new SaleOrderResource($result),
+            "Sale order rejected.",
+        ]);
     }
 
     /**
@@ -219,14 +277,16 @@ class SaleOrderController extends BaseApiController
      */
     public function confirm(Request $request, int $id): JsonResponse
     {
-        
         $orgId = $this->getActiveOrgId($request);
         $saleOrder = $this->service->find($id, $orgId);
         $this->authorizeAction($request, $saleOrder);
-        
-        $result = $this->service->confirm($saleOrder, $request->input('note'));
-        
-        return $this->success([new SaleOrderResource($result), 'Sale order confirmed successfully.']);
+
+        $result = $this->service->confirm($saleOrder, $request->input("note"));
+
+        return $this->success([
+            new SaleOrderResource($result),
+            "Sale order confirmed successfully.",
+        ]);
     }
 
     /**
@@ -234,18 +294,20 @@ class SaleOrderController extends BaseApiController
      */
     public function cancel(Request $request, int $id): JsonResponse
     {
-        
         $request->validate([
-            'reason' => 'required|string|max:500',
-            ]);
-            
-            $orgId = $this->getActiveOrgId($request);
-            $saleOrder = $this->service->find($id, $orgId);
-            $this->authorizeAction($request, $saleOrder);
-        
+            "reason" => "required|string|max:500",
+        ]);
+
+        $orgId = $this->getActiveOrgId($request);
+        $saleOrder = $this->service->find($id, $orgId);
+        $this->authorizeAction($request, $saleOrder);
+
         $result = $this->service->cancel($saleOrder, $request->reason);
-        
-        return $this->success([new SaleOrderResource($result), 'Sale order cancelled.']);
+
+        return $this->success([
+            new SaleOrderResource($result),
+            "Sale order cancelled.",
+        ]);
     }
 
     /**
@@ -253,14 +315,14 @@ class SaleOrderController extends BaseApiController
      */
     protected function getWorkflowMessage(?string $action): string
     {
-        return match($action) {
-            'submit' => 'Sale order submitted for approval.',
-            'review' => 'Sale order reviewed successfully.',
-            'approve' => 'Sale order approved successfully.',
-            'reject' => 'Sale order rejected.',
-            'confirm' => 'Sale order confirmed successfully.',
-            'cancel' => 'Sale order cancelled.',
-            default => 'Sale order updated successfully.',
+        return match ($action) {
+            "submit" => "Sale order submitted for approval.",
+            "review" => "Sale order reviewed successfully.",
+            "approve" => "Sale order approved successfully.",
+            "reject" => "Sale order rejected.",
+            "confirm" => "Sale order confirmed successfully.",
+            "cancel" => "Sale order cancelled.",
+            default => "Sale order updated successfully.",
         };
     }
 }
